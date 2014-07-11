@@ -6,7 +6,7 @@ include("../../../includes/functions.php");
 include("../../../includes/gatewayfunctions.php");
 include("../../../includes/invoicefunctions.php");
 
-$gatewaymodule = "zaakpay"; 
+$gatewaymodule = "Zaakpay"; 
 
 $GATEWAY = getGatewayVariables($gatewaymodule);
 $secret_key = $GATEWAY['secretkey']; 
@@ -17,6 +17,8 @@ $orderId = $_POST["orderId"];
 $res_code = $_POST["responseCode"];
 $res_desc = $_POST["responseDescription"];
 $recv_checksum = $_POST["checksum"];
+$transid = $_POST["orderId"];
+$amount = $_POST["amount"]) / 100;
 
 
 #Zaakpay Response Checksum part
@@ -71,17 +73,18 @@ foreach($_POST as $key => $value)
 		 }
 
 
-$orderId = checkCbInvoiceID($orderId,$GATEWAY["name"]); 			# Checks Order Id is a valid order number or ends processing
+$orderId = checkCbInvoiceID($orderId, $GATEWAY["name"]); 			# Checks Order Id is a valid order number or ends processing
 
-
+checkCbTransID($transid); # Checks transaction number isn't already in the database and ends processing if it does
 
 if ($res_code=="100") {	
     # Successful
-    addInvoicePayment($orderId,$res_code,$res_desc,$gatewaymodule); # Apply Payment to Invoice: orderid, response code, response description, modulename
-	logTransaction($GATEWAY["name"],$_POST,"Successful"); 			# Save to Gateway Log: name, data array, status
+    addInvoicePayment($orderId, $transid, $amount, $res_code, $res_desc, $gatewaymodule); # Apply Payment to Invoice: orderid, response code, response description, modulename
+	logTransaction($GATEWAY["name"], $_POST, "Successful"); 			# Save to Gateway Log: name, data array, status
 } else {
 	# Unsuccessful
-    logTransaction($GATEWAY["name"],$_POST,"Unsuccessful"); 		# Save to Gateway Log: name, data array, status
+    logTransaction($GATEWAY["name"], $_POST, "Unsuccessful"); 		# Save to Gateway Log: name, data array, status
 }
-
+$filename = $request_params['udf1'] . '/viewinvoice.php?id=' . $orderId;
+HEADER("location:$filename");
 ?>
