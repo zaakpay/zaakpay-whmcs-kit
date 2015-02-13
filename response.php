@@ -1,10 +1,12 @@
 <?php
-
+ob_start();
 # Required File Includes
 include("../../../dbconnect.php");
 include("../../../includes/functions.php");
 include("../../../includes/gatewayfunctions.php");
 include("../../../includes/invoicefunctions.php");
+
+
 
 $gatewaymodule = "zaakpay"; 
 
@@ -17,14 +19,21 @@ $orderId = $_POST["orderId"];
 $res_code = $_POST["responseCode"];
 $res_desc = $_POST["responseDescription"];
 $recv_checksum = $_POST["checksum"];
+$transid = $_POST["orderId"];
+$amount = $_POST['amount'];
+$cardhashid = $_POST['cardhashid'];
+$paymentMethod = $_POST['paymentMethod'];
+#$amount = ($_POST["amount"]) / 100;
 
 
 #Zaakpay Response Checksum part
 
-$all = ("'". $orderId ."''". $res_code ."''". $res_desc."'");
+$all = ("'". $orderId ."''". $res_code ."''". $res_desc."''".$amount."''".$paymentMethod."''".$cardhashid."'");
 
 
 $hash = hash_hmac('sha256', $all , $secret_key);
+
+
 
 foreach($_POST as $key => $value)
 {
@@ -39,7 +48,7 @@ foreach($_POST as $key => $value)
 		else if($key == "responseDescription")
 		{
 			echo '<tr><td width="50%" align="center" valign="middle">'.$key.'</td> 
-						<td width="50%" align="center" valign="middle"><font color=Red>This response is compromised. The Transaction might have been Successfull</font></td></tr><br>';
+						<td width="50%" align="center" valign="middle"><font color=Red>This response is compromised. The Transaction might have been Successful</font></td></tr><br>';
 		}
 		else
 		{
@@ -71,17 +80,26 @@ foreach($_POST as $key => $value)
 		 }
 
 
-$orderId = checkCbInvoiceID($orderId,$GATEWAY["name"]); 			# Checks Order Id is a valid order number or ends processing
 
 
+$orderId = checkCbInvoiceID($orderId, $GATEWAY["name"]); 			# Checks Order Id is a valid order number or ends processing
+
+checkCbTransID($transid); # Checks transaction number isn't already in the database and ends processing if it does
 
 if ($res_code=="100") {	
     # Successful
-    addInvoicePayment($orderId,$res_code,$res_desc,$gatewaymodule); # Apply Payment to Invoice: orderid, response code, response description, modulename
-	logTransaction($GATEWAY["name"],$_POST,"Successful"); 			# Save to Gateway Log: name, data array, status
+    addInvoicePayment($orderId, $transid, $amount, $res_code, $res_desc, $gatewaymodule); # Apply Payment to Invoice: orderid, response code, response description, modulename
+	logTransaction($GATEWAY["name"], $_POST, "Successful"); 			# Save to Gateway Log: name, data array, status
+	
 } else {
 	# Unsuccessful
-    logTransaction($GATEWAY["name"],$_POST,"Unsuccessful"); 		# Save to Gateway Log: name, data array, status
-}
-
+	
+    logTransaction($GATEWAY["name"], $_POST, "Unsuccessful"); 		# Save to Gateway Log: name, data array, status
+     
+    }
+ 
+error_reporting(E_ALL);
+ini_set('display_errors', 'On');
+header('Location:https://webappzlive.com/clients/viewinvoice.php?id='.$orderId);
+ob_flush();
 ?>
